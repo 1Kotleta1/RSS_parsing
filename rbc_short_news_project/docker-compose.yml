@@ -1,0 +1,57 @@
+services:
+  rbc-parser:
+    build: .
+    container_name: rbc-short-news-parser
+    profiles: ["batch"]
+    working_dir: /app
+    command:
+      [
+        "/usr/bin/python3",
+        "src/rbc_short_news_parser.py",
+        "--hours",
+        "24",
+        "--rbc-max-pages",
+        "300",
+        "--rbc-max-items",
+        "3000",
+        "--rbc-fulltext-limit",
+        "200",
+        "--ria-max-items",
+        "300",
+        "--ria-fulltext-limit",
+        "150",
+        "--max-search-seconds",
+        "300",
+        "--log-level",
+        "INFO"
+      ]
+    volumes:
+      - ./news:/app/news
+      - ./logs:/app/logs
+
+  parser-api:
+    build: .
+    container_name: rbc-short-news-api
+    profiles: ["api"]
+    restart: unless-stopped
+    working_dir: /app
+    command: ["/usr/local/bin/python", "src/api_server.py"]
+    environment:
+      API_HOST: "0.0.0.0"
+      API_PORT: "8080"
+      # Optional overrides:
+      # RBC_COOKIE: ""
+      # RBC_REFERER: "https://www.rbc.ru/short_news/"
+      # GAZETA_COOKIE: "unity_pause_sso=1"
+      # GAZETA_REFERER: "https://www.gazeta.ru/news/"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    volumes:
+      - ./news:/app/news
+      - ./logs:/app/logs
